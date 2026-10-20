@@ -469,12 +469,10 @@ def do_analysis(target_df):
 
     row_sums = plph_matrix_all.sum(axis=1, keepdims=True)
     plph_pmf_matrix = plph_matrix_all / row_sums
-
+    plph_pmf_matrix = np.nan_to_num(plph_pmf_matrix, nan=0)
 
     # plot heatmap
-    cleaned_plph_pmf_matrix = np.nan_to_num(plph_pmf_matrix, nan=0)
-
-    plph_pmf_matrix_actual_fig, ax = plot_plph_pmf_matrix(cleaned_plph_pmf_matrix)
+    plph_pmf_matrix_actual_fig, ax = plot_plph_pmf_matrix(plph_pmf_matrix)
 
     ax.set_title(f"Number of Rounds = {target_df.shape[0]}")
     ax.set_ylabel("#Pin_Left (#samples)")

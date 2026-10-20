@@ -283,7 +283,7 @@ elif page == "Create Filter Conditions":
         # PART 2A: FILTER SELECTOR
         # ==========================================
 
-        st.subheader("Filter Conditions")
+        st.subheader("Manage Filter Conditions (Supports Multiple Filter Conditions)")
 
         # Convert date column to datetime for date filtering
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
