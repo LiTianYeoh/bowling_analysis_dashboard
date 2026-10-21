@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import io
 
-NUM_SIMULATIONS = 100000
+NUM_SIMULATIONS = 10000
 
 # ==========================================
 # CSS
@@ -451,7 +451,7 @@ def fig_to_buf(fig):
 def calculate_monte_carlo_stats(final_score_list):
     result = {"Avg Score": np.round(np.mean(final_score_list), 2)}
 
-    for q in [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95]:
+    for q in [0.05, 0.1, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.9, 0.95]:
         result[f"q{q:.2f}"] = np.quantile(final_score_list, q)
 
     return result

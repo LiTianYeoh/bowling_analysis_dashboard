@@ -63,6 +63,8 @@ if "filter_results" not in st.session_state:
 if "pending_filter" not in st.session_state:
     st.session_state["pending_filter"] = None
 
+if "is_running_analysis" not in st.session_state:
+    st.session_state["is_running_analysis"] = False
 # ==========================================
 # PART 1: Upload Data
 # ==========================================
@@ -416,37 +418,43 @@ elif page == "Create Filter Conditions":
 
                 st.metric("Number of Rounds: ", pending_filter['num_rounds'])
 
-                st.warning("It takes around 30s to run the analysis (monte carlo simulation)")
+                st.warning("It takes around 10s to run the analysis (monte carlo simulation)")
 
-                col1, col2 = st.columns(2)
+                if st.session_state["is_running_analysis"] is False:
 
-                with col1:
-                    confirm_pending_filter = st.button("Confirm", type="primary", use_container_width=True)
-                    
-                with col2:
-                    cancel_pending_filter = st.button("Cancel", type="secondary", use_container_width=True)
+                    col1, col2 = st.columns(2)
 
-                if confirm_pending_filter:
-                    st.write("Performing analysis, please wait...")
+                    with col1:
+                        confirm_pending_filter = st.button("Confirm", type="primary", use_container_width=True)
+                        
+                    with col2:
+                        cancel_pending_filter = st.button("Cancel", type="secondary", use_container_width=True)
 
-                    # do analysis on the filter condition
-                    heatmap_buf, monte_carlo_result = do_analysis(pending_filter["target_df"])
+                    if confirm_pending_filter:
+                        st.session_state["is_running_analysis"] = True
+                        st.rerun()
 
-                    # Save the filter condition and filter results
-                    st.session_state["filter_conditions"].append(pending_filter["filter_conds"])
-                    st.session_state["filter_results"][pending_filter["filter_conds"]["filter_name"]] = {
-                        "num_rounds": pending_filter['num_rounds'],
-                        "heatmap_buf": heatmap_buf,
-                        "monte_carlo_result": monte_carlo_result
-                    }
+                    if cancel_pending_filter:
+                        st.session_state["pending_filter"] = None
+                        st.rerun()
 
-                    st.session_state["pending_filter"] = None
-                    st.rerun()
+                else:
+                    with st.spinner("Performing analysis, please wait..."):
 
-                if cancel_pending_filter:
-                    st.session_state["pending_filter"] = None
-                    st.rerun()
+                        # do analysis on the filter condition
+                        heatmap_buf, monte_carlo_result = do_analysis(pending_filter["target_df"])
 
+                        # Save the filter condition and filter results
+                        st.session_state["filter_conditions"].append(pending_filter["filter_conds"])
+                        st.session_state["filter_results"][pending_filter["filter_conds"]["filter_name"]] = {
+                            "num_rounds": pending_filter['num_rounds'],
+                            "heatmap_buf": heatmap_buf,
+                            "monte_carlo_result": monte_carlo_result
+                        }
+
+                        st.session_state["is_running_analysis"] = False
+                        st.session_state["pending_filter"] = None
+                        st.rerun()
 
         # Display all filter conditions
         if st.session_state["filter_conditions"]:
@@ -564,7 +572,8 @@ elif page == "Performance Analysis":
             score_metric_dict = {
                 "Filter Name": filter_name,
                 "Avg #Strike": monte_carlo_result["simulated_avg_num_strike"],
-                "Avg #Spare": monte_carlo_result["simulated_avg_num_spare"]
+                "Avg #Spare": monte_carlo_result["simulated_avg_num_spare"],
+                "Avg #St&Sp": monte_carlo_result["simulated_avg_num_strike"] + monte_carlo_result["simulated_avg_num_spare"],
             }
             score_metric_dict.update(calculate_monte_carlo_stats(monte_carlo_result["simulated_final_scores"]))
 
