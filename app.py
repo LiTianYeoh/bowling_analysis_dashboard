@@ -442,7 +442,7 @@ elif page == "Create Filter Conditions":
                     with st.spinner("Performing analysis, please wait..."):
 
                         # do analysis on the filter condition
-                        heatmap_buf, monte_carlo_result = do_analysis(pending_filter["target_df"])
+                        heatmap_buf, monte_carlo_result = do_analysis(pending_filter["target_df"], pending_filter['filter_conds']['filter_name'])
 
                         # Save the filter condition and filter results
                         st.session_state["filter_conditions"].append(pending_filter["filter_conds"])

@@ -459,7 +459,7 @@ def calculate_monte_carlo_stats(final_score_list):
 
 
 
-def do_analysis(target_df):
+def do_analysis(target_df, filter_name):
 
     # calculate plph_pmf_matrix
     plph_matrix_all = np.zeros([10,11])
@@ -474,7 +474,8 @@ def do_analysis(target_df):
     # plot heatmap
     plph_pmf_matrix_actual_fig, ax = plot_plph_pmf_matrix(plph_pmf_matrix)
 
-    ax.set_title(f"Number of Rounds = {target_df.shape[0]}")
+
+    ax.set_title(f"Filter_name: {filter_name}, Number of Rounds: {target_df.shape[0]}")
     ax.set_ylabel("#Pin_Left (#samples)")
     ax.set_yticks(
         ticks = np.arange(plph_pmf_matrix.shape[0]),
