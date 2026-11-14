@@ -728,9 +728,11 @@ elif page == "PLPH-matrix simulation":
             st.session_state["user_input_plph_matrix_df"] = edited_df
             plph_pmf_matrix = st.session_state["user_input_plph_matrix_df"].to_numpy()
 
-            monte_carlo_result = do_monte_carlo(plph_pmf_matrix)
-            monte_carlo_result.update(calculate_monte_carlo_stats(monte_carlo_result["simulated_final_scores"]))
-            # st.json(monte_carlo_result)
+            with st.spinner("Performing monte carlo, please wait..."):
+
+                monte_carlo_result = do_monte_carlo(plph_pmf_matrix)
+                monte_carlo_result.update(calculate_monte_carlo_stats(monte_carlo_result["simulated_final_scores"]))
+                # st.json(monte_carlo_result)
 
             col1, col2, col3 = st.columns(3)
 
@@ -753,4 +755,3 @@ elif page == "PLPH-matrix simulation":
                 hide_index=True,
                 use_container_width=True
             )
-
