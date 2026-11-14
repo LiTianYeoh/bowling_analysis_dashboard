@@ -457,6 +457,26 @@ def calculate_monte_carlo_stats(final_score_list):
     return result
 
 
+def do_monte_carlo(plph_pmf_matrix):
+    simulated_final_scores = []
+    simulated_total_num_strike = 0
+    simulated_total_num_spare = 0
+
+    for _ in range(NUM_SIMULATIONS):
+        simulated_final_score, simulated_num_strike, simulated_num_spare = simulate_round_score(plph_pmf_matrix)
+        
+        simulated_final_scores.append(simulated_final_score)
+        simulated_total_num_strike += simulated_num_strike
+        simulated_total_num_spare += simulated_num_spare
+
+    simulated_avg_num_strike = round(simulated_total_num_strike/NUM_SIMULATIONS, 2)
+    simulated_avg_num_spare = round(simulated_total_num_spare/NUM_SIMULATIONS, 2)
+
+    return {
+        "simulated_final_scores": simulated_final_scores,
+        "simulated_avg_num_strike": simulated_avg_num_strike,
+        "simulated_avg_num_spare": simulated_avg_num_spare
+    }
 
 
 def do_analysis(target_df, filter_name):
@@ -487,24 +507,6 @@ def do_analysis(target_df, filter_name):
 
 
     # monte carlo performance
-    simulated_final_scores = []
-    simulated_total_num_strike = 0
-    simulated_total_num_spare = 0
-
-    for _ in range(NUM_SIMULATIONS):
-        simulated_final_score, simulated_num_strike, simulated_num_spare = simulate_round_score(plph_pmf_matrix)
-        
-        simulated_final_scores.append(simulated_final_score)
-        simulated_total_num_strike += simulated_num_strike
-        simulated_total_num_spare += simulated_num_spare
-
-    simulated_avg_num_strike = round(simulated_total_num_strike/NUM_SIMULATIONS, 2)
-    simulated_avg_num_spare = round(simulated_total_num_spare/NUM_SIMULATIONS, 2)
-
-    monte_carlo_result = {
-        "simulated_final_scores": simulated_final_scores,
-        "simulated_avg_num_strike": simulated_avg_num_strike,
-        "simulated_avg_num_spare": simulated_avg_num_spare
-    }
+    monte_carlo_result = do_monte_carlo(plph_pmf_matrix)
 
     return heatmap_buf, monte_carlo_result

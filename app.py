@@ -9,7 +9,7 @@ from utils import (
     REQUIRED_COLUMNS_DTYPES, REQUIRED_COLUMNS,
     validate_columns,
     check_score_consistency,
-    do_analysis,
+    do_monte_carlo, do_analysis,
     NUM_SIMULATIONS,
     calculate_monte_carlo_stats
 )
@@ -40,7 +40,8 @@ page = st.sidebar.radio(
     [
         "Upload Data",
         "Create Filter Conditions",
-        "Performance Analysis"
+        "Performance Analysis",
+        "PLPH-matrix simulation"
     ],
 )
 
@@ -65,6 +66,21 @@ if "pending_filter" not in st.session_state:
 
 if "is_running_analysis" not in st.session_state:
     st.session_state["is_running_analysis"] = False
+
+if "user_input_plph_matrix_df" not in st.session_state:
+    n_rows = 10
+    n_cols = 11
+
+    index = [f"PL={n_rows-i}" for i in range(n_rows)]
+    headers = [f"PH={j}" for j in range(n_cols)]
+
+
+    st.session_state["user_input_plph_matrix_df"] = pd.DataFrame(
+        0.0,
+        index=index,
+        columns=headers
+    )
+
 # ==========================================
 # PART 1: Upload Data
 # ==========================================
@@ -447,7 +463,10 @@ elif page == "Create Filter Conditions":
                         # Save the filter condition and filter results
                         st.session_state["filter_conditions"].append(pending_filter["filter_conds"])
                         st.session_state["filter_results"][pending_filter["filter_conds"]["filter_name"]] = {
+                            "start_date": pending_filter["filter_conds"]["start_date"],
+                            "end_date": pending_filter["filter_conds"]["end_date"],
                             "num_rounds": pending_filter['num_rounds'],
+
                             "heatmap_buf": heatmap_buf,
                             "monte_carlo_result": monte_carlo_result
                         }
@@ -571,6 +590,9 @@ elif page == "Performance Analysis":
 
             score_metric_dict = {
                 "Filter Name": filter_name,
+                "Start Date": result_dict["start_date"],
+                "End Date": result_dict["end_date"],
+                "#Games": result_dict["num_rounds"],
                 "Avg #Strike": monte_carlo_result["simulated_avg_num_strike"],
                 "Avg #Spare": monte_carlo_result["simulated_avg_num_spare"],
                 "Avg #St&Sp": monte_carlo_result["simulated_avg_num_strike"] + monte_carlo_result["simulated_avg_num_spare"],
@@ -580,10 +602,11 @@ elif page == "Performance Analysis":
             score_metric_list.append(score_metric_dict)
 
         score_metric_df = pd.DataFrame(score_metric_list)
+        score_metric_df_transposed = score_metric_df.round(2).astype(str).set_index("Filter Name").T
 
         st.dataframe(
-            score_metric_df,
-            hide_index=True,
+            score_metric_df_transposed,
+            hide_index=False,
             use_container_width=True,
         )
 
@@ -627,4 +650,107 @@ elif page == "Performance Analysis":
 
         st.plotly_chart(kde_fig, use_container_width=True)
 
+elif page == "PLPH-matrix simulation":
+
+    st.header("PLPH-matrix simulation")
+    st.markdown(
+        """
+        **How to read this table:**
+        - Each row represents the **Pin Left(PL)**.
+        - Each column represents the **Pin Hit(PH)**.
+        - Each cell represents the probability of the particular situation, 
+        ie PH pins hit when there are PL pins left.
+        """
+    )
+
+    # Editable table
+    edited_df = st.data_editor(
+        st.session_state["user_input_plph_matrix_df"],
+        use_container_width=True,
+        key="allocation_editor",
+        column_config={
+            col: st.column_config.NumberColumn(
+                col,
+                min_value=0.0,
+                max_value=1.0,
+                step=0.01,
+                format="%.2f"
+            )
+            for col in st.session_state["user_input_plph_matrix_df"].columns
+        },
+        hide_index=False
+    )
+
+    # edited_df = st.session_state.allocation_editor
+
+    # Validation
+    (nrows, ncols) = edited_df.shape
+    issues = []
+
+    for i in range(nrows):
+        curr_row_issue = []
+
+        row_sum = edited_df.iloc[i].sum()
+
+        # Check row sum
+        if not np.isclose(row_sum, 1.0, atol=1e-6):
+            curr_row_issue.append(f"Total prob should be 1.00 not {row_sum}")
+
+        # Check locked cells
+        lock_cell_issue = []
+        for j in range(ncols):
+
+            is_locked = j >= (ncols - i)
+
+            if is_locked and edited_df.iloc[i, j] != 0:
+                lock_cell_issue.append(j)
+
+        if lock_cell_issue:
+            curr_row_issue.append(
+                f"Locked cells (PH={', '.join([str(j) for j in lock_cell_issue])}) prob should be 0"
+            )
+
+        if curr_row_issue:
+            issues.append(f"PL={nrows-i}: {', '.join(curr_row_issue)}")
+       
+    # Display validation results
+    st.subheader("Validation Results")
+
+    if issues:
+        st.error(f"Found {len(issues)} issue(s).")
+
+        for issue in issues:
+            st.warning(issue)
+    else:
+        st.success("All inputs are valid! Every row sums to 1.")
+
+        if st.button("Run Simulation", type="primary"):
+            st.session_state["user_input_plph_matrix_df"] = edited_df
+            plph_pmf_matrix = st.session_state["user_input_plph_matrix_df"].to_numpy()
+
+            monte_carlo_result = do_monte_carlo(plph_pmf_matrix)
+            monte_carlo_result.update(calculate_monte_carlo_stats(monte_carlo_result["simulated_final_scores"]))
+            # st.json(monte_carlo_result)
+
+            col1, col2, col3 = st.columns(3)
+
+            col1.metric("Avg Score", f"{monte_carlo_result['Avg Score']:.2f}")
+            col2.metric("Avg #Strike", f"{monte_carlo_result['simulated_avg_num_strike']:.2f}")
+            col3.metric("Avg #Spare", f"{monte_carlo_result['simulated_avg_num_spare']:.2f}")
+
+            quantile_values = {
+                k: v for k, v in monte_carlo_result.items()
+                if k not in ["simulated_final_scores", "Avg Score", "simulated_avg_num_strike", "simulated_avg_num_spare"]
+            }
+
+            st.subheader("Quantiles")
+
+            st.dataframe(
+                pd.DataFrame(
+                    list(quantile_values.items()),
+                    columns=["Quantile", "Final Score"]
+                ),
+                hide_index=True,
+                use_container_width=True
+            )
 
